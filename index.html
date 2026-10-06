@@ -510,13 +510,13 @@ function recolor() {
   render();
 }
 
-// Export / import favorites as plain text, e.g. [Shelly,Poco,Bull]
+// Export / import favorites as plain text, e.g. [Shelly,Poco,Bull]. The order of the list IS the favorites order (first = top).
 const favtext = document.getElementById("favtext"), iostat = document.getElementById("iostat");
 document.getElementById("btnExport").onclick = () => {
   const s = "[" + [...favs].join(",") + "]";
   favtext.value = s;
   favtext.select();
-  iostat.textContent = "Exported " + favs.size + " favorite" + (favs.size === 1 ? "" : "s") + ".";
+  iostat.textContent = "Exported " + favs.size + " favorite" + (favs.size === 1 ? "" : "s") + " in your current order.";
   try {
     navigator.clipboard.writeText(s).then(
       () => iostat.textContent += " Copied to clipboard.",
@@ -526,16 +526,18 @@ document.getElementById("btnExport").onclick = () => {
 };
 function importFavs(replace) {
   const raw = favtext.value.trim().replace(/^\[/, "").replace(/\]$/, "");
-  const parts = raw.split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+  // the order written is the order kept; leading numbers like "1. Shelly" are ignored
+  const parts = raw.split(/[,\n]/).map(s => s.trim().replace(/^\d+[.)]\s+/, "")).filter(Boolean);
   const found = new Set(), bad = [];
   parts.forEach(p => {
     const b = brawlers.find(b => names(b).includes(norm(p)));
     b ? found.add(b.n) : bad.push(p);
   });
-  favs = replace ? found : new Set([...favs, ...found]);
+  // replace: exactly the imported order. merge: my other favorites stay first, then the imported ones in their imported order
+  favs = replace ? found : new Set([...[...favs].filter(n => !found.has(n)), ...found]);
   saveFavs();
   render();
-  iostat.textContent = "Imported " + found.size + "." + (bad.length ? " Not recognized: " + bad.join(", ") : "");
+  iostat.textContent = "Imported " + found.size + " in the listed order." + (bad.length ? " Not recognized: " + bad.join(", ") : "");
 }
 document.getElementById("btnMerge").onclick = () => importFavs(false);
 document.getElementById("btnReplace").onclick = () => importFavs(true);
